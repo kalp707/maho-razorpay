@@ -1,0 +1,20 @@
+<?php
+/**
+ * SPDX-FileCopyrightText: 2026 Kalp Razorpay Contributors
+ * SPDX-License-Identifier: OSL-3.0
+ * @package Kalp_Razorpay
+ */
+/** @var Kalp_Razorpay_Block_Info $this */
+?>
+<p><strong><?= $this->escapeHtml($this->getMethod()->getTitle()) ?></strong></p>
+<?php if ($specificInfo = $this->getSpecificInformation()): ?>
+    <table class="data-table">
+        <?php foreach ($specificInfo as $label => $value): ?>
+            <tr>
+                <th><?= $this->escapeHtml($label) ?></th>
+                <td><?= $this->escapeHtml(is_array($value) ? implode(', ', $value) : $value) ?></td>
+            </tr>
+        <?php endforeach ?>
+    </table>
+<?php endif ?>
+<?= $this->getChildHtml() ?>

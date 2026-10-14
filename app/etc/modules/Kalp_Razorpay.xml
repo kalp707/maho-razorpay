@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * SPDX-FileCopyrightText: 2026 Kalp Razorpay Contributors
+ * SPDX-License-Identifier: OSL-3.0
+ * @package Kalp_Razorpay
+ */
+-->
+<config>
+    <modules>
+        <Kalp_Razorpay>
+            <active>true</active>
+            <codePool>community</codePool>
+            <depends>
+                <Mage_Payment/>
+                <Mage_Checkout/>
+                <Mage_Sales/>
+            </depends>
+        </Kalp_Razorpay>
+    </modules>
+</config>

@@ -1,0 +1,59 @@
+<?php
+/**
+ * SPDX-FileCopyrightText: 2026 Kalp Razorpay Contributors
+ * SPDX-License-Identifier: OSL-3.0
+ * @package Kalp_Razorpay
+ */
+/**
+ * Opens Razorpay Checkout.js for the pending order.
+ *
+ * @see https://razorpay.com/docs/payments/server-integration/php/integration-steps/
+ * @var Kalp_Razorpay_Block_Redirect $this
+ */
+$order = $this->getOrder();
+$optionsJson = $this->getCheckoutOptionsJson();
+?>
+<div class="page-title">
+    <h1><?= $this->__('Complete your payment') ?></h1>
+</div>
+
+<?php if ($order === null): ?>
+    <p><?= $this->__('No pending order was found.') ?></p>
+<?php else: ?>
+    <p><?= $this->__('Order <strong>%s</strong> — please complete payment with Razorpay.', $this->escapeHtml($order->getIncrementId())) ?></p>
+    <p>
+        <button type="button" class="button" id="razorpay-pay-button">
+            <span><span><?= $this->__('Pay with Razorpay') ?></span></span>
+        </button>
+        <a class="button" href="<?= $this->escapeUrl($this->getCancelUrl()) ?>">
+            <span><span><?= $this->__('Cancel') ?></span></span>
+        </a>
+    </p>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+    <script>
+    (() => {
+        const boot = () => {
+            if (typeof Razorpay === 'undefined') {
+                return;
+            }
+
+            const options = <?= /* @noEscape */ $optionsJson ?>;
+            options.modal ??= {};
+            options.modal.ondismiss = () => {};
+
+            const rzp = new Razorpay(options);
+            const openCheckout = () => rzp.open();
+
+            document.getElementById('razorpay-pay-button')?.addEventListener('click', openCheckout);
+            queueMicrotask(openCheckout);
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot, { once: true });
+        } else {
+            boot();
+        }
+    })();
+    </script>
+<?php endif ?>

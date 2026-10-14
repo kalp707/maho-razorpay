@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * SPDX-FileCopyrightText: 2026 Kalp Razorpay Contributors
+ * SPDX-License-Identifier: OSL-3.0
+ * @package Kalp_Razorpay
+ */
+-->
+<config>
+    <modules>
+        <Kalp_Razorpay>
+            <version>1.0.0</version>
+        </Kalp_Razorpay>
+    </modules>
+
+    <global>
+        <models>
+            <razorpay>
+                <class>Kalp_Razorpay_Model</class>
+            </razorpay>
+        </models>
+        <blocks>
+            <razorpay>
+                <class>Kalp_Razorpay_Block</class>
+            </razorpay>
+        </blocks>
+        <helpers>
+            <razorpay>
+                <class>Kalp_Razorpay_Helper</class>
+            </razorpay>
+        </helpers>
+        <payment>
+            <groups>
+                <razorpay>Razorpay</razorpay>
+            </groups>
+        </payment>
+    </global>
+
+    <frontend>
+        <secure_url>
+            <razorpay_payment>/razorpay/payment</razorpay_payment>
+            <razorpay_webhook>/razorpay/webhook</razorpay_webhook>
+        </secure_url>
+        <routers>
+            <razorpay>
+                <use>standard</use>
+                <args>
+                    <module>Kalp_Razorpay</module>
+                    <frontName>razorpay</frontName>
+                </args>
+            </razorpay>
+        </routers>
+        <translate>
+            <modules>
+                <Kalp_Razorpay>
+                    <files>
+                        <default>Kalp_Razorpay.csv</default>
+                    </files>
+                </Kalp_Razorpay>
+            </modules>
+        </translate>
+        <layout>
+            <updates>
+                <razorpay>
+                    <file>razorpay.xml</file>
+                </razorpay>
+            </updates>
+        </layout>
+    </frontend>
+
+    <adminhtml>
+        <translate>
+            <modules>
+                <Kalp_Razorpay>
+                    <files>
+                        <default>Kalp_Razorpay.csv</default>
+                    </files>
+                </Kalp_Razorpay>
+            </modules>
+        </translate>
+    </adminhtml>
+
+    <default>
+        <payment>
+            <razorpay>
+                <active>0</active>
+                <model>razorpay/method_checkout</model>
+                <title>Razorpay</title>
+                <payment_action>authorize</payment_action>
+                <order_status>pending_payment</order_status>
+                <allowspecific>0</allowspecific>
+                <sort_order>20</sort_order>
+                <group>razorpay</group>
+                <key_id/>
+                <key_secret backend_model="adminhtml/system_config_backend_encrypted"/>
+                <webhook_secret backend_model="adminhtml/system_config_backend_encrypted"/>
+                <merchant_name>Maho Store</merchant_name>
+                <theme_color>#3399cc</theme_color>
+                <debug>0</debug>
+            </razorpay>
+        </payment>
+    </default>
+</config>

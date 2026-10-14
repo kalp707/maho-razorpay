@@ -1,0 +1,15 @@
+{
+    "name": "kalp707/maho-razorpay",
+    "description": "Razorpay payment gateway module for Maho Commerce",
+    "type": "maho-module",
+    "license": "OSL-3.0",
+    "keywords": ["maho", "razorpay", "payment", "checkout"],
+    "require": {
+        "php": ">=8.2",
+        "mahocommerce/maho": ">=26.5",
+        "razorpay/razorpay": "2.*"
+    },
+    "extra": {
+        "maho-module-dir": "app/code/community/Kalp/Razorpay"
+    }
+}

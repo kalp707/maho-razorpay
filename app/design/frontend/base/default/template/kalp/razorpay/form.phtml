@@ -1,0 +1,13 @@
+<?php
+/**
+ * SPDX-FileCopyrightText: 2026 Kalp Razorpay Contributors
+ * SPDX-License-Identifier: OSL-3.0
+ * @package Kalp_Razorpay
+ */
+/** @var Kalp_Razorpay_Block_Form $this */
+?>
+<ul class="form-list" id="payment_form_<?= $this->escapeHtml($this->getMethodCode()) ?>" style="display:none;">
+    <li>
+        <p><?= $this->__('You will be redirected to Razorpay Checkout to complete your payment securely.') ?></p>
+    </li>
+</ul>
