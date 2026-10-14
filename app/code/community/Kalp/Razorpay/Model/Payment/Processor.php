@@ -335,30 +335,72 @@ final class Kalp_Razorpay_Model_Payment_Processor
         string $paymentId,
         ?string $razorpayOrderId = null,
     ): void {
-        if (!$this->isAwaitingPayment($order)) {
-            $this->flagPaidButNotCapturable($order, $paymentId, 'capture');
+        $orderId = (int) $order->getId();
+        if ($orderId <= 0 || $paymentId === '') {
             return;
         }
 
-        $payment = $order->getPayment();
-        $payment
-            ->setTransactionId($paymentId)
-            ->setAdditionalInformation('razorpay_payment_id', $paymentId)
-            ->setIsTransactionClosed(true);
+        /** @var Mage_Core_Model_Resource $resource */
+        $resource = Mage::getSingleton('core/resource');
+        $write = $resource->getConnection('core_write');
+        $orderTable = $resource->getTableName('sales/order');
 
-        if ($razorpayOrderId !== null && $razorpayOrderId !== '') {
-            $payment->setAdditionalInformation('razorpay_order_id', $razorpayOrderId);
+        // Serialize callback + webhook: lock the order row, reload, then capture once.
+        $write->beginTransaction();
+        try {
+            $write->fetchOne(
+                $write->select()
+                    ->from($orderTable, ['entity_id'])
+                    ->where('entity_id = ?', $orderId)
+                    ->forUpdate(true),
+            );
+
+            $order->load($orderId);
+            if (!$order->getId()) {
+                $write->commit();
+                return;
+            }
+
+            if ($this->alreadyCaptured($order, $paymentId)) {
+                $this->helper()->debug('Order already captured, skipping', [
+                    'increment_id' => $order->getIncrementId(),
+                    'payment_id' => $paymentId,
+                ]);
+                $write->commit();
+                return;
+            }
+
+            if (!$this->isAwaitingPayment($order)) {
+                $this->flagPaidButNotCapturable($order, $paymentId, 'capture');
+                $write->commit();
+                return;
+            }
+
+            $payment = $order->getPayment();
+            $payment
+                ->setTransactionId($paymentId)
+                ->setAdditionalInformation('razorpay_payment_id', $paymentId)
+                ->setIsTransactionClosed(true);
+
+            if ($razorpayOrderId !== null && $razorpayOrderId !== '') {
+                $payment->setAdditionalInformation('razorpay_order_id', $razorpayOrderId);
+            }
+
+            $payment->registerCaptureNotification((float) $order->getGrandTotal(), true);
+
+            $order->setState(
+                Mage_Sales_Model_Order::STATE_PROCESSING,
+                true,
+                $this->helper()->__('Razorpay payment captured. Payment ID: %s', $paymentId),
+                true,
+            );
+            $order->save();
+
+            $write->commit();
+        } catch (Throwable $e) {
+            $write->rollBack();
+            throw $e;
         }
-
-        $payment->registerCaptureNotification((float) $order->getGrandTotal(), true);
-
-        $order->setState(
-            Mage_Sales_Model_Order::STATE_PROCESSING,
-            true,
-            $this->helper()->__('Razorpay payment captured. Payment ID: %s', $paymentId),
-            true,
-        );
-        $order->save();
 
         if ($order->getCanSendNewEmailFlag()) {
             try {
@@ -372,6 +414,25 @@ final class Kalp_Razorpay_Model_Payment_Processor
             'increment_id' => $order->getIncrementId(),
             'payment_id' => $paymentId,
         ]);
+    }
+
+    private function alreadyCaptured(Mage_Sales_Model_Order $order, string $paymentId): bool
+    {
+        if ($order->hasInvoices()) {
+            return true;
+        }
+
+        $storedPaymentId = (string) $order->getPayment()->getAdditionalInformation('razorpay_payment_id');
+        if ($storedPaymentId !== '' && hash_equals($storedPaymentId, $paymentId)) {
+            return true;
+        }
+
+        /** @var Mage_Sales_Model_Order_Payment_Transaction $txn */
+        $txn = Mage::getModel('sales/order_payment_transaction');
+        $txn->setOrderPaymentObject($order->getPayment());
+        $txn->loadByTxnId($paymentId);
+
+        return (bool) $txn->getId();
     }
 
     private function helper(): Kalp_Razorpay_Helper_Data
