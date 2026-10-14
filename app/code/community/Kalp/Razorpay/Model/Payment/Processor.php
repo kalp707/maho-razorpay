@@ -144,6 +144,10 @@ final class Kalp_Razorpay_Model_Payment_Processor
             return;
         }
 
+        if (!$this->webhookMatchesStoredPayment($order, $paymentEntity, $razorpayOrderId)) {
+            return;
+        }
+
         if ($order->hasInvoices()) {
             return;
         }
@@ -154,6 +158,62 @@ final class Kalp_Razorpay_Model_Payment_Processor
         }
 
         $this->captureOrder($order, $paymentId, $razorpayOrderId !== '' ? $razorpayOrderId : null);
+    }
+
+    /**
+     * Ensure the webhook payment belongs to this Magento order (order id, amount, currency).
+     * Prevents cross-store capture when increment IDs collide on a shared Razorpay account.
+     *
+     * @param array<string, mixed> $paymentEntity
+     */
+    private function webhookMatchesStoredPayment(
+        Mage_Sales_Model_Order $order,
+        array $paymentEntity,
+        string $razorpayOrderId,
+    ): bool {
+        $payment = $order->getPayment();
+        $storedOrderId = (string) $payment->getAdditionalInformation('razorpay_order_id');
+        $storedAmount = $payment->getAdditionalInformation('razorpay_amount');
+        $storedCurrency = strtoupper((string) $payment->getAdditionalInformation('razorpay_currency'));
+
+        if ($storedOrderId === '' || $razorpayOrderId === '' || !hash_equals($storedOrderId, $razorpayOrderId)) {
+            $this->helper()->debug('Webhook payment.captured: razorpay_order_id mismatch', [
+                'increment_id' => $order->getIncrementId(),
+                'stored' => $storedOrderId,
+                'webhook' => $razorpayOrderId,
+                'payment_id' => (string) ($paymentEntity['id'] ?? ''),
+            ]);
+            return false;
+        }
+
+        $webhookAmount = isset($paymentEntity['amount']) ? (int) $paymentEntity['amount'] : null;
+        $webhookCurrency = strtoupper((string) ($paymentEntity['currency'] ?? ''));
+
+        if ($storedAmount === null || $storedAmount === '' || $webhookAmount === null
+            || (int) $storedAmount !== $webhookAmount
+        ) {
+            $this->helper()->debug('Webhook payment.captured: amount mismatch', [
+                'increment_id' => $order->getIncrementId(),
+                'stored' => $storedAmount,
+                'webhook' => $webhookAmount,
+                'payment_id' => (string) ($paymentEntity['id'] ?? ''),
+            ]);
+            return false;
+        }
+
+        if ($storedCurrency === '' || $webhookCurrency === ''
+            || !hash_equals($storedCurrency, $webhookCurrency)
+        ) {
+            $this->helper()->debug('Webhook payment.captured: currency mismatch', [
+                'increment_id' => $order->getIncrementId(),
+                'stored' => $storedCurrency,
+                'webhook' => $webhookCurrency,
+                'payment_id' => (string) ($paymentEntity['id'] ?? ''),
+            ]);
+            return false;
+        }
+
+        return true;
     }
 
     public function loadOrderByRazorpayOrderId(string $razorpayOrderId): ?Mage_Sales_Model_Order
