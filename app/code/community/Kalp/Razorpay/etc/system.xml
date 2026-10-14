@@ -6,11 +6,6 @@
  * @package Kalp_Razorpay
  */
 -->
-<!--
-/**
- * Razorpay payment method admin configuration
- */
--->
 <config>
     <sections>
         <payment>

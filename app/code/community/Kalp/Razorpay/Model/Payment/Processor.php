@@ -157,34 +157,31 @@ final class Kalp_Razorpay_Model_Payment_Processor
             return null;
         }
 
-        // Magento stores additional_information as PHP-serialized data; constrain in SQL first.
-        $serializedNeedle = sprintf(
-            '"razorpay_order_id";s:%d:"%s"',
-            strlen($razorpayOrderId),
-            $razorpayOrderId,
-        );
+        // Maho stores additional_information as JSON (via Mage::helper('core')->jsonEncode()).
+        // Escape LIKE wildcards in the order id before building the SQL pattern.
+        $escapedOrderId = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $razorpayOrderId);
+        $jsonNeedle = '"razorpay_order_id":"' . $escapedOrderId . '"';
 
         /** @var Mage_Sales_Model_Resource_Order_Payment_Collection $payments */
         $payments = Mage::getResourceModel('sales/order_payment_collection');
         $payments
             ->addFieldToFilter('method', Kalp_Razorpay_Model_Method_Checkout::METHOD_CODE)
-            ->addFieldToFilter('additional_information', ['like' => '%' . $serializedNeedle . '%'])
-            ->setPageSize(1);
+            ->addFieldToFilter('additional_information', ['like' => '%' . $jsonNeedle . '%']);
 
-        /** @var Mage_Sales_Model_Order_Payment|false $payment */
-        $payment = $payments->getFirstItem();
-        if (!$payment || !$payment->getId()) {
-            return null;
+        foreach ($payments as $payment) {
+            /** @var Mage_Sales_Model_Order_Payment $payment */
+            $info = $payment->getAdditionalInformation();
+            if (!is_array($info) || ($info['razorpay_order_id'] ?? '') !== $razorpayOrderId) {
+                continue;
+            }
+
+            $order = Mage::getModel('sales/order')->load($payment->getParentId());
+            if ($order->getId()) {
+                return $order;
+            }
         }
 
-        $info = $payment->getAdditionalInformation();
-        if (!is_array($info) || ($info['razorpay_order_id'] ?? '') !== $razorpayOrderId) {
-            return null;
-        }
-
-        $order = Mage::getModel('sales/order')->load($payment->getParentId());
-
-        return $order->getId() ? $order : null;
+        return null;
     }
 
     private function assertPayable(Mage_Sales_Model_Order $order): void
