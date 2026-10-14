@@ -63,6 +63,24 @@ final class Kalp_Razorpay_Model_Api_Client
     }
 
     /**
+     * @param array{amount?: int, notes?: array<string, string>} $attributes
+     * @return array<string, mixed>
+     */
+    public function refundPayment(string $paymentId, array $attributes = []): array
+    {
+        $helper = $this->helper();
+        $helper->debug('Creating Razorpay refund', [
+            'payment_id' => $paymentId,
+            'amount' => $attributes['amount'] ?? null,
+        ]);
+
+        $data = $this->getApi()->payment->fetch($paymentId)->refund($attributes)->toArray();
+        $helper->debug('Razorpay refund created', ['id' => $data['id'] ?? null]);
+
+        return $data;
+    }
+
+    /**
      * @param array{razorpay_order_id: string, razorpay_payment_id: string, razorpay_signature: string} $attributes
      * @throws SignatureVerificationError
      */

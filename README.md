@@ -50,6 +50,10 @@ Package type is `maho-module`. Maho loads code and templates from `vendor/`.
 5. Callback to `/razorpay/payment/callback` verifies the signature and invoices the order
 6. Optional webhook on `/razorpay/webhook` captures missed browser callbacks
 
+## Online refunds
+
+Credit memos created online (against an invoice) call the Razorpay Refunds API. Partial refunds are supported. The Razorpay refund id is stored as the credit memo / payment transaction id.
+
 ## Endpoints
 
 | URL | Purpose |
