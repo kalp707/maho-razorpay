@@ -11,6 +11,7 @@
 "Razorpay did not return an order id.","Razorpay did not return an order id."
 "Razorpay Order ID","Razorpay Order ID"
 "Razorpay order id mismatch.","Razorpay order id mismatch."
+"Razorpay payment %s was received via %s, but the order is in state \"%s\" and was not captured automatically. Review and refund or reinstate manually.","Razorpay payment %s was received via %s, but the order is in state \"%s\" and was not captured automatically. Review and refund or reinstate manually."
 "Razorpay payment captured. Payment ID: %s","Razorpay payment captured. Payment ID: %s"
 "Razorpay Payment ID","Razorpay Payment ID"
 "Razorpay payment was cancelled or failed.","Razorpay payment was cancelled or failed."

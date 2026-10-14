@@ -148,6 +148,11 @@ final class Kalp_Razorpay_Model_Payment_Processor
             return;
         }
 
+        if (!$this->isAwaitingPayment($order)) {
+            $this->flagPaidButNotCapturable($order, $paymentId, 'webhook');
+            return;
+        }
+
         $this->captureOrder($order, $paymentId, $razorpayOrderId !== '' ? $razorpayOrderId : null);
     }
 
@@ -190,15 +195,45 @@ final class Kalp_Razorpay_Model_Payment_Processor
             Mage::throwException($this->helper()->__('This order is not payable with Razorpay.'));
         }
 
-        $awaiting = match ($order->getState()) {
+        if (!$this->isAwaitingPayment($order)) {
+            Mage::throwException($this->helper()->__('This order is not awaiting payment.'));
+        }
+    }
+
+    private function isAwaitingPayment(Mage_Sales_Model_Order $order): bool
+    {
+        return match ($order->getState()) {
             Mage_Sales_Model_Order::STATE_PENDING_PAYMENT,
             Mage_Sales_Model_Order::STATE_NEW => true,
             default => false,
         };
+    }
 
-        if (!$awaiting) {
-            Mage::throwException($this->helper()->__('This order is not awaiting payment.'));
-        }
+    /**
+     * Payment arrived for an order that is no longer awaiting payment (e.g. cancelled).
+     * Do not revive the order; leave a history note for the merchant.
+     */
+    private function flagPaidButNotCapturable(
+        Mage_Sales_Model_Order $order,
+        string $paymentId,
+        string $source,
+    ): void {
+        $message = $this->helper()->__(
+            'Razorpay payment %s was received via %s, but the order is in state "%s" and was not captured automatically. Review and refund or reinstate manually.',
+            $paymentId,
+            $source,
+            (string) $order->getState(),
+        );
+
+        $order->addStatusHistoryComment($message);
+        $order->save();
+
+        $this->helper()->debug('Paid but not capturable', [
+            'increment_id' => $order->getIncrementId(),
+            'payment_id' => $paymentId,
+            'state' => $order->getState(),
+            'source' => $source,
+        ]);
     }
 
     private function createAndPersistRazorpayOrder(
@@ -240,6 +275,11 @@ final class Kalp_Razorpay_Model_Payment_Processor
         string $paymentId,
         ?string $razorpayOrderId = null,
     ): void {
+        if (!$this->isAwaitingPayment($order)) {
+            $this->flagPaidButNotCapturable($order, $paymentId, 'capture');
+            return;
+        }
+
         $payment = $order->getPayment();
         $payment
             ->setTransactionId($paymentId)

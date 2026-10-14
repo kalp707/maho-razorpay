@@ -66,7 +66,16 @@ class Kalp_Razorpay_PaymentController extends Mage_Core_Controller_Front_Action
             Mage::getSingleton('checkout/session')->addError(
                 Mage::helper('razorpay')->__('Payment verification failed: %s', $e->getMessage()),
             );
-            $this->_redirect('razorpay/payment/cancel');
+
+            // Only cancel on an explicit Razorpay error payload. Other failures
+            // (DB, signature mismatch mid-flight) leave the order in pending_payment
+            // so a payment.captured webhook can still complete it.
+            if ($this->hasRazorpayErrorPayload()) {
+                $this->_redirect('razorpay/payment/cancel');
+                return;
+            }
+
+            $this->_redirect('checkout/cart');
         }
     }
 
@@ -76,7 +85,15 @@ class Kalp_Razorpay_PaymentController extends Mage_Core_Controller_Front_Action
         $session = Mage::getSingleton('checkout/session');
         $order = $this->resolvePendingOrder();
 
-        if ($order?->canCancel()) {
+        // Cancel only when the customer (or Razorpay error redirect) hit cancel,
+        // and only while the order is still awaiting payment.
+        if ($order?->canCancel()
+            && in_array(
+                $order->getState(),
+                [Mage_Sales_Model_Order::STATE_PENDING_PAYMENT, Mage_Sales_Model_Order::STATE_NEW],
+                true,
+            )
+        ) {
             try {
                 $order->cancel();
                 $order->addStatusHistoryComment(
@@ -92,6 +109,24 @@ class Kalp_Razorpay_PaymentController extends Mage_Core_Controller_Front_Action
             Mage::helper('razorpay')->__('Your Razorpay payment was cancelled. You can place the order again.'),
         );
         $this->_redirect('checkout/cart');
+    }
+
+    private function hasRazorpayErrorPayload(): bool
+    {
+        $request = $this->getRequest();
+        $error = $request->getPost('error') ?? $request->getParam('error');
+        if (is_array($error) && $error !== []) {
+            return true;
+        }
+
+        foreach (['error[code]', 'error[description]', 'error_code'] as $key) {
+            $value = $request->getPost($key) ?? $request->getParam($key);
+            if (is_string($value) && $value !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return array{razorpay_payment_id: string, razorpay_order_id: string, razorpay_signature: string} */
